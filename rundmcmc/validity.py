@@ -287,4 +287,4 @@ def no_less_contiguous_districts(partition):
         return True
     else:
         return all([partition['count_components'][part] <=
-                    partition.parent['count_components'][part]])
+                    partition.parent['count_components'][part] for part in partition.parts])
