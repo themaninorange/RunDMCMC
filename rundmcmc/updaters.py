@@ -350,24 +350,32 @@ def compute_county_splits(partition, county_field, partition_field):
     return new_county_dict
 
 
-def boundary_node_count_of_part(partition, part):
+def new_boundary_node_count_of_part(partition, part):
     """
     Counts the nodes on the boundary of a part.
     Requires that 'cut_edges' be an updater, and 'exterior_boundaries' be an updater.
     """
 
     # Counts the nodes that are on the edge of the (US) state
-    state_boundary_count = len(partition['exterior_boundaries'][part])
+    state_boundary = set(partition['exterior_boundaries'][part])
 
     # Counts the nodes of the part that share an edge with a different part.
-    partition_boundary_count = len(set([x for y in partition['cut_edges_by_part'][part]
-                                       for x in y]).intersection(partition.parts[part]))
-
-    return state_boundary_count + partition_boundary_count
+    return len(set([x for y in partition['cut_edges_by_part'][part]
+                    for x in y]).intersection(partition.parts[part]).union(
+                        state_boundary))
 
 
 def boundary_node_counts(partition):
-    return {part: boundary_node_count_of_part(partition, part) for part in partition.parts}
+    if partition.parent:
+        pos_changes = {part : sum(assignment == part for assignment in partition.flips.values())
+                       for part in partition.parts}
+        neg_changed = {part : sum(partition.assignment[node] == part for node in partition.flips)
+                       for part in partition.parts}
+        return {part : partition['boundary_node_counts'][part]
+                       + pos_changes[part] - neg_changes[part] for part in partition.parts}
+    else:
+        return {part : new_boundary_node_count_of_part(partition, part)
+                for part in partitions.parts}
 
 
 def node_counts(partition):
@@ -382,3 +390,22 @@ def discrete_polsby_popper_updater(partition):
     return {part: compute_discrete_polsby_popper(partition['node_counts'][part],
                                                  partition['boundary_node_counts'][part])
         for part in partition.parts}
+
+def count_subparts_of_part(partition, part):
+    """
+    Returns the number of connected components of a graph
+    """
+    
+    if partition.parent:
+        # If the part is in the list of partitions that may have changed,
+        # we have to recalculate them.  Else, we can return what the parent had.
+        if (part in partition.flips.values() or
+            part in [partition.assignment[node] for node in partition.flips]):
+            return len(nx.connected_components(partition.graph.subgraph(part)))
+        else:
+            return partition.parent['count_subparts_of_part'][part]
+
+    return len(nx.connected_components(partition.graph.subgraph(part)))
+
+def count_components_updater(partition, alias = 'count_components'):
+    return {part: count_subparts_of_part(partition, part) for part in partition.parts}

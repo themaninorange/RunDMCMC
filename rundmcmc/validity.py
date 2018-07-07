@@ -160,35 +160,18 @@ def contiguous(partition):
 
     :returns: True if contiguous, False otherwise.
     """
-    flips = partition.flips
-    if not flips:
-        flips = dict()
-
-    def proposed_assignment(node):
-        """Return the proposed assignment of the given node."""
-        return partition.assignment[node]
-    # TODO
-
-    # Creates a dictionary where the key is the district and the value is
-    # a list of VTDs that belong to that district
-    district_dict = {}
-    # TODO
-    for node in partition.graph.nodes:
-        # TODO
-        dist = proposed_assignment(node)
-        if dist in district_dict:
-            district_dict[dist].append(node)
-        else:
-            district_dict[dist] = [node]
 
     # Checks if the subgraph of all districts are connected(contiguous)
-    for key in district_dict:
-        # TODO
-        tmp = partition.graph.subgraph(district_dict[key])
+    for part in partition.parts:
+        tmp = partition.graph.subgraph(part)
         if nx.is_connected(tmp) is False:
             return False
 
     return True
+
+
+def forrgiving_contiguous(partition):
+
 
 
 def fast_connected(partition):
@@ -294,3 +277,14 @@ def no_vanishing_districts(partition):
     if not partition.parent:
         return True
     return len(partition) == len(partition.parent)
+
+def no_less_contiguous_districts(partition):
+    """
+    Requires the count_components updater
+    """
+
+    if not partition.parent:
+        return True
+    else:
+        return all([partition['count_components'][part] <=
+                    partition.parent['count_components'][part]])
